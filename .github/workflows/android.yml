@@ -23,12 +23,20 @@ jobs:
       - name: Extract project
         run: unzip -o AzkarMuslim-AndroidStudio.zip -d .
 
+      - name: Verify project directory
+        run: |
+          echo "Workspace: $GITHUB_WORKSPACE"
+          ls -la "$GITHUB_WORKSPACE/AzkarMuslim"
+          test -f "$GITHUB_WORKSPACE/AzkarMuslim/app/build.gradle.kts"
+
       - name: Fix Java and Kotlin targets
         run: |
           python3 - <<'PY'
           from pathlib import Path
+
           p = Path("AzkarMuslim/app/build.gradle.kts")
           s = p.read_text()
+
           addition = """android {
               compileOptions {
                   sourceCompatibility = JavaVersion.VERSION_17
@@ -38,17 +46,21 @@ jobs:
                   jvmTarget = "17"
               }
           """
+
+          if "android {" not in s:
+              raise Exception("Android configuration not found")
+
           s = s.replace("android {", addition, 1)
           p.write_text(s)
           PY
 
-      - name: Build APK
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
       - name: Assemble APK
-        working-directory: AzkarMuslim
+        working-directory: ${{ github.workspace }}/AzkarMuslim
         run: gradle assembleDebug
 
       - name: Upload APK
